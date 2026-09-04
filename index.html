@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Wi-Fi Spatial Mapping & Signal Visualizer | Science Exhibition</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            cyberDark: '#0a0a12',
+            cyberBlack: '#06070a',
+            cyberPanel: 'rgba(12, 14, 24, 0.82)',
+            neonCyan: '#00f3ff',
+            neonMagenta: '#ff007f',
+            neonAmber: '#ffb700',
+            neonGreen: '#00ffa3',
+            neonBlue: '#3b82f6'
+          },
+          fontFamily: {
+            orbitron: ['Orbitron', 'sans-serif'],
+            rajdhani: ['Rajdhani', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Google Fonts: Orbitron, Rajdhani, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Three.js CDN and OrbitControls CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Custom Sci-Fi / Cyberpunk Styling */
+    :root {
+      --neon-cyan: #00f3ff;
+      --neon-magenta: #ff007f;
+      --neon-amber: #ffb700;
+      --neon-green: #00ffa3;
+    }
+
+    body {
+      background-color: #06070a;
+      color: #e2e8f0;
+      font-family: 'Rajdhani', sans-serif;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Cyber Glassmorphism */
+    .cyber-glass {
+      background: rgba(10, 12, 22, 0.82);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(0, 243, 255, 0.25);
+      box-shadow: 0 0 25px rgba(0, 243, 255, 0.08), inset 0 0 15px rgba(0, 243, 255, 0.03);
+    }
+
+    .cyber-glass-magenta {
+      background: rgba(14, 10, 20, 0.85);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 0, 127, 0.35);
+      box-shadow: 0 0 25px rgba(255, 0, 127, 0.12);
+    }
+
+    .neon-text-cyan {
+      color: #00f3ff;
+      text-shadow: 0 0 10px rgba(0, 243, 255, 0.6), 0 0 20px rgba(0, 243, 255, 0.3);
+    }
+
+    .neon-text-magenta {
+      color: #ff007f;
+      text-shadow: 0 0 10px rgba(255, 0, 127, 0.6), 0 0 20px rgba(255, 0, 127, 0.3);
+    }
+
+    .neon-border-cyan {
+      border-color: #00f3ff;
+      box-shadow: 0 0 12px rgba(0, 243, 255, 0.4);
+    }
+
+    /* Cyber Button Clip Path */
+    .cyber-btn {
+      position: relative;
+      clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+      transition: all 0.25s ease;
+    }
+    .cyber-btn:hover {
+      box-shadow: 0 0 18px rgba(0, 243, 255, 0.5);
+      transform: translateY(-1px);
+    }
+
+    /* Subtle Scanline Overlay */
+    .scanlines {
+      background: linear-gradient(
+        to bottom,
+        rgba(255,255,255,0),
+        rgba(255,255,255,0) 50%,
+        rgba(0, 0, 0, 0.25) 50%,
+        rgba(0, 0, 0, 0.25)
+      );
+      background-size: 100% 4px;
+      pointer-events: none;
+    }
+
+    /* Custom Scrollbar for slide content */
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(10, 10, 18, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #00f3ff;
+      border-radius: 3px;
+    }
+
+    /* Sliders styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: rgba(0, 243, 255, 0.15);
+      border-radius: 2px;
+      height: 6px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 2px;
+      background: #00f3ff;
+      cursor: pointer;
+      box-shadow: 0 0 8px #00f3ff;
+      transform: rotate(45deg);
+    }
+
+    /* Pulsing animations */
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.7; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.05); }
+    }
+    .pulse-glow {
+      animation: pulseGlow 2.5s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden select-none bg-[#06070a]">
+  
+  <!-- 3D WebGL Canvas Container -->
+  <div id="canvas-container" class="absolute inset-0 z-0 cursor-grab active:cursor-grabbing"></div>
+
+  <!-- Scanline & Vignette Effect Overlays -->
+  <div class="scanlines absolute inset-0 z-10 opacity-30 pointer-events-none"></div>
+  <div class="absolute inset-0 z-10 pointer-events-none" style="background: radial-gradient(circle at center, transparent 60%, rgba(6,7,10,0.85) 100%);"></div>
+
+  <!-- ==================== HEADER HUD ==================== -->
+  <header class="absolute top-0 left-0 right-0 z-20 px-6 py-3 flex items-center justify-between cyber-glass border-b border-cyan-500/30">
+    <!-- Left: Branding & Science Exhibition Badge -->
+    <div class="flex items-center space-x-4">
+      <div class="w-10 h-10 rounded cyber-btn bg-cyan-950/80 border border-cyan-400 flex items-center justify-center shadow-[0_0_15px_rgba(0,243,255,0.4)]">
+        <i data-lucide="radio-tower" class="w-6 h-6 text-cyan-400 animate-pulse"></i>
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <h1 class="font-orbitron font-bold text-lg tracking-wider text-white flex items-center">
+            3D WI-FI SPATIAL MAPPING
+            <span class="ml-2 text-xs px-2 py-0.5 rounded bg-pink-950/80 border border-pink-500 text-pink-400 font-mono tracking-normal">RF-VIS v2.4</span>
+          </h1>
+          <span class="text-xs px-2 py-0.5 rounded bg-cyan-950/70 border border-cyan-500/50 text-cyan-300 font-mono hidden md:inline-block">RUVIEW ARCHITECTURE</span>
+        </div>
+        <p class="text-xs text-cyan-300/70 tracking-wide font-mono uppercase">Science Exhibition Project • Spatial RF Telemetry & LiDAR SLAM</p>
+      </div>
+    </div>
+
+    <!-- Center: Live Status Telemetry Pills -->
+    <div class="hidden lg:flex items-center space-x-6 text-xs font-mono">
+      <div class="flex items-center space-x-2 px-3 py-1 rounded bg-black/40 border border-cyan-500/20">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        <span class="text-gray-400">ENGINE:</span>
+        <span class="text-cyan-300 font-bold">THREE.JS WebGL</span>
+      </div>
+      <div class="flex items-center space-x-2 px-3 py-1 rounded bg-black/40 border border-cyan-500/20">
+        <span class="text-gray-400">ACTIVE BAND:</span>
+        <span id="hud-band" class="text-neonMagenta font-bold">5.0 GHz (UNII-1)</span>
+      </div>
+      <div class="flex items-center space-x-2 px-3 py-1 rounded bg-black/40 border border-cyan-500/20">
+        <span class="text-gray-400">FPS:</span>
+        <span id="hud-fps" class="text-neonCyan font-bold">60</span>
+      </div>
+    </div>
+
+    <!-- Right: Audio, Reset, Auto Tour, Fullscreen -->
+    <div class="flex items-center space-x-2.5">
+      <button id="btn-audio" title="Toggle Synthesized Audio FX" class="cyber-btn px-3 py-1.5 bg-cyan-950/50 hover:bg-cyan-900/60 text-cyan-300 border border-cyan-500/40 text-xs font-mono flex items-center space-x-1.5">
+        <i data-lucide="volume-2" id="audio-icon" class="w-4 h-4"></i>
+        <span id="audio-text" class="hidden sm:inline">AUDIO: ON</span>
+      </button>
+
+      <button id="btn-reset-view" title="Reset Camera to Default" class="cyber-btn px-3 py-1.5 bg-cyan-950/50 hover:bg-cyan-900/60 text-cyan-300 border border-cyan-500/40 text-xs font-mono flex items-center space-x-1.5">
+        <i data-lucide="compass" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">RESET CAM</span>
+      </button>
+
+      <button id="btn-auto-tour" title="Auto-Play Presentation Tour" class="cyber-btn px-3 py-1.5 bg-pink-950/40 hover:bg-pink-900/60 text-pink-300 border border-pink-500/40 text-xs font-mono flex items-center space-x-1.5">
+        <i data-lucide="play" id="tour-icon" class="w-4 h-4"></i>
+        <span id="tour-text" class="hidden sm:inline">AUTO TOUR</span>
+      </button>
+
+      <button id="btn-fullscreen" title="Toggle Fullscreen" class="cyber-btn px-2.5 py-1.5 bg-cyan-950/50 hover:bg-cyan-900/60 text-cyan-300 border border-cyan-500/40 text-xs">
+        <i data-lucide="maximize" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== LEFT PRESENTATION SLIDE PANEL ==================== -->
+  <aside id="slide-panel" class="absolute left-6 top-20 bottom-20 z-20 w-96 max-w-[calc(100vw-3rem)] flex flex-col cyber-glass rounded-lg border border-cyan-500/30 overflow-hidden shadow-2xl transition-all duration-500">
+    
+    <!-- Panel Header: Slide Indicator & Mode -->
+    <div class="px-5 py-3 border-b border-cyan-500/25 bg-cyan-950/30 flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <span class="w-2.5 h-2.5 bg-neonCyan rotate-45"></span>
+        <span class="font-orbitron text-xs tracking-widest text-cyan-300 font-bold uppercase" id="slide-badge">EXHIBIT SLIDE 01 / 04</span>
+      </div>
+      <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-900/40 text-cyan-400 border border-cyan-500/30">INTERACTIVE HUD</span>
+    </div>
+
+    <!-- Scrollable Slide Body -->
+    <div id="slide-content-container" class="p-5 flex-1 overflow-y-auto space-y-4 text-sm font-rajdhani">
+      <!-- Injected dynamically via JavaScript -->
+    </div>
+
+    <!-- Panel Footer: Slide Navigation Stepper -->
+    <div class="p-3.5 border-t border-cyan-500/25 bg-black/40 flex items-center justify-between">
+      <button id="btn-prev-slide" class="cyber-btn px-3 py-1.5 bg-cyan-950/60 hover:bg-cyan-800/60 text-cyan-300 border border-cyan-500/40 text-xs font-mono flex items-center space-x-1">
+        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        <span>PREV</span>
+      </button>
+
+      <!-- Dot Indicators -->
+      <div class="flex items-center space-x-2" id="slide-dots">
+        <button class="w-2.5 h-2.5 rounded-full bg-neonCyan shadow-[0_0_8px_#00f3ff] transition-all duration-300" onclick="goToSlide(0)"></button>
+        <button class="w-2.5 h-2.5 rounded-full bg-gray-600 hover:bg-cyan-400 transition-all duration-300" onclick="goToSlide(1)"></button>
+        <button class="w-2.5 h-2.5 rounded-full bg-gray-600 hover:bg-cyan-400 transition-all duration-300" onclick="goToSlide(2)"></button>
+        <button class="w-2.5 h-2.5 rounded-full bg-gray-600 hover:bg-cyan-400 transition-all duration-300" onclick="goToSlide(3)"></button>
+      </div>
+
+      <button id="btn-next-slide" class="cyber-btn px-3 py-1.5 bg-cyan-950/60 hover:bg-cyan-800/60 text-cyan-300 border border-cyan-500/40 text-xs font-mono flex items-center space-x-1">
+        <span>NEXT</span>
+        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ==================== RIGHT REAL-TIME TELEMETRY HUD ==================== -->
+  <aside class="hidden md:flex absolute right-6 top-20 z-20 w-80 flex-col space-y-3 pointer-events-none">
+    
+    <!-- Live RSSI & Probe Sensor Card -->
+    <div class="cyber-glass p-4 rounded-lg border border-cyan-500/30 pointer-events-auto shadow-xl">
+      <div class="flex items-center justify-between border-b border-cyan-500/20 pb-2 mb-3">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="crosshair" class="w-4 h-4 text-neonCyan"></i>
+          <span class="font-orbitron text-xs font-bold tracking-wider text-white">MOBILE SENSOR PROBE</span>
+        </div>
+        <span class="text-[10px] font-mono text-neonGreen px-1.5 py-0.5 rounded bg-emerald-950/50 border border-emerald-500/30">ONLINE</span>
+      </div>
+
+      <!-- Gauges & RSSI display -->
+      <div class="flex items-baseline justify-between mb-2">
+        <span class="text-xs text-gray-400 font-mono">SIGNAL RSSI</span>
+        <div class="text-right">
+          <span id="telemetry-rssi" class="font-orbitron text-2xl font-bold text-neonCyan">-48</span>
+          <span class="text-xs text-cyan-400 font-mono">dBm</span>
+        </div>
+      </div>
+
+      <!-- Progress bar for signal strength -->
+      <div class="w-full bg-gray-800/80 rounded-full h-2 mb-3 overflow-hidden border border-cyan-500/30">
+        <div id="telemetry-bar" class="h-full bg-gradient-to-r from-neonCyan via-neonAmber to-neonMagenta transition-all duration-300" style="width: 82%;"></div>
+      </div>
+
+      <!-- Key Value Grid -->
+      <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+        <div class="p-2 rounded bg-black/40 border border-cyan-500/15">
+          <div class="text-gray-400 text-[10px]">DISTANCE</div>
+          <div id="telemetry-dist" class="text-white font-bold text-sm">3.4 m</div>
+        </div>
+        <div class="p-2 rounded bg-black/40 border border-cyan-500/15">
+          <div class="text-gray-400 text-[10px]">THROUGHPUT</div>
+          <div id="telemetry-speed" class="text-neonGreen font-bold text-sm">620 Mbps</div>
+        </div>
+        <div class="p-2 rounded bg-black/40 border border-cyan-500/15">
+          <div class="text-gray-400 text-[10px]">PACKET LOSS</div>
+          <div id="telemetry-loss" class="text-neonAmber font-bold text-sm">0.12%</div>
+        </div>
+        <div class="p-2 rounded bg-black/40 border border-cyan-500/15">
+          <div class="text-gray-400 text-[10px]">PATH STATE</div>
+          <div id="telemetry-los" class="text-cyan-300 font-bold text-xs truncate">LOS (CLEAR)</div>
+        </div>
+      </div>
+
+      <div class="mt-3 pt-2 border-t border-cyan-500/20 text-[11px] font-mono text-cyan-300/80 flex items-center space-x-1.5">
+        <i data-lucide="mouse-pointer" class="w-3.5 h-3.5 text-cyan-400"></i>
+        <span>Click floor in 3D to move probe</span>
+      </div>
+    </div>
+
+    <!-- Live RF Spectrum Subcarrier Waterfall / Mini Graph -->
+    <div class="cyber-glass p-3.5 rounded-lg border border-cyan-500/30 pointer-events-auto">
+      <div class="flex items-center justify-between mb-2">
+        <span class="font-orbitron text-[11px] font-bold tracking-wider text-gray-300 flex items-center space-x-1.5">
+          <i data-lucide="activity" class="w-3.5 h-3.5 text-pink-500"></i>
+          <span>CSI SUBCARRIER SPECTRUM (RUVIEW)</span>
+        </span>
+        <span class="text-[10px] font-mono text-pink-400">64-OFDM</span>
+      </div>
+      <!-- Mini animated visualizer bars -->
+      <div id="spectrum-bars" class="flex items-end justify-between h-14 bg-black/50 p-1.5 rounded border border-pink-500/20 gap-0.5">
+        <!-- Injected via JS -->
+      </div>
+      <div class="flex justify-between text-[9px] font-mono text-gray-500 mt-1">
+        <span>-20 MHz (Carrier)</span>
+        <span>Center 5.180 GHz</span>
+        <span>+20 MHz</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ==================== BOTTOM HUD: HEATMAP LEGEND & CONTROLS ==================== -->
+  <footer class="absolute bottom-4 left-6 right-6 z-20 flex flex-col md:flex-row items-center justify-between cyber-glass px-5 py-2.5 rounded-lg border border-cyan-500/30 space-y-2 md:space-y-0">
+    <!-- Signal Heatmap Gradient Bar -->
+    <div class="flex items-center space-x-3 w-full md:w-auto">
+      <span class="font-orbitron text-xs font-bold text-gray-300 flex items-center space-x-1">
+        <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i>
+        <span>HEATMAP RSSI:</span>
+      </span>
+      <div class="flex items-center space-x-2">
+        <span class="text-[10px] font-mono text-pink-400">&gt; -45 dBm</span>
+        <div class="h-3 w-40 sm:w-60 rounded" style="background: linear-gradient(to right, #ff007f, #ff0000, #ffb700, #00ffa3, #00f3ff, #1e1b4b);"></div>
+        <span class="text-[10px] font-mono text-indigo-400">&lt; -85 dBm</span>
+      </div>
+    </div>
+
+    <!-- Quick Navigation Keys Hint -->
+    <div class="flex items-center space-x-4 text-xs font-mono text-gray-400">
+      <div class="flex items-center space-x-1">
+        <kbd class="px-1.5 py-0.5 rounded bg-gray-800 border border-gray-600 text-[10px] text-cyan-300">&larr;</kbd>
+        <kbd class="px-1.5 py-0.5 rounded bg-gray-800 border border-gray-600 text-[10px] text-cyan-300">&rarr;</kbd>
+        <span>Change Slides</span>
+      </div>
+      <div class="hidden sm:flex items-center space-x-1">
+        <kbd class="px-1.5 py-0.5 rounded bg-gray-800 border border-gray-600 text-[10px] text-cyan-300">Space</kbd>
+        <span>Toggle Waves</span>
+      </div>
+      <div class="hidden sm:flex items-center space-x-1">
+        <kbd class="px-1.5 py-0.5 rounded bg-gray-800 border border-gray-600 text-[10px] text-cyan-300">R</kbd>
+        <span>Reset Cam</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==================== THREE.JS APPLICATION LOGIC ==================== -->
+  <script>
+    // Global State & Simulation Parameters
+    const state = {
+      currentSlide: 0,
+      autoTour: false,
+      tourTimer: null,
+      audioEnabled: true,
+      
+      // Wi-Fi RF Simulation Parameters
+      txPower: 20,          // dBm (100 mW)
+      frequency: 5.0,       // GHz (2.4, 5.0, 6.0)
+      wallMaterial: 'concrete', // concrete, drywall, glass, none
+      waveSpeed: 1.0,
+      waveActive: true,
+      heatmapElevation: 0.8, // meters
+      beamforming: false,
+      
+      // Probe coordinates
+      probePos: new THREE.Vector3(4, 0.2, 3),
+      routerPos: new THREE.Vector3(-4, 1.2, -2),
+
+      // Camera Animation
+      camTransitioning: false,
+      camStartTime: 0,
+      camDuration: 1200,
+      camStartPos: new THREE.Vector3(),
+      camEndPos: new THREE.Vector3(),
+      targetStartPos: new THREE.Vector3(),
+      targetEndPos: new THREE.Vector3()
+    };
+
+    // Camera presets for the 4 slides
+    const slideCameraPresets = [
+      { // Slide 1: Wide cinematic overview of the whole architectural space
+        camPos: new THREE.Vector3(22, 20, 24),
+        targetPos: new THREE.Vector3(0, 1, 0)
+      },
+      { // Slide 2: Hardware Zoom into Router
+        camPos: new THREE.Vector3(-1.5, 3.2, 1.8),
+        targetPos: new THREE.Vector3(-4, 1.2, -2)
+      },
+      { // Slide 3: Tactical top-down 65-deg angle for simulation lab
+        camPos: new THREE.Vector3(0, 28, 14),
+        targetPos: new THREE.Vector3(0, 0, 0)
+      },
+      { // Slide 4: Strategic isometric perspective for applications & multi-room
+        camPos: new THREE.Vector3(-16, 15, 20),
+        targetPos: new THREE.Vector3(1, 0.5, 0)
+      }
+    ];
+
+    // Slide Content Definitions
+    const slideData = [
+      {
+        badge: "EXHIBIT SLIDE 01 / 04",
+        title: "Overview & Abstract",
+        subtitle: "The Invisible RF Crisis in Modern Architecture",
+        content: `
+          <div class="space-y-3.5">
+            <p class="text-gray-300 leading-relaxed">
+              Modern Wi-Fi is an invisible life-support system for high-density environments, yet spatial dead zones, RF shadowing, and multi-path fading cost billions in latency and dropped connections.
+            </p>
+
+            <div class="p-3 rounded bg-cyan-950/40 border border-cyan-500/30 text-xs space-y-1.5">
+              <div class="text-neonCyan font-bold font-orbitron flex items-center space-x-1.5">
+                <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-neonAmber"></i>
+                <span>THE PHYSICAL BOTTLENECK</span>
+              </div>
+              <p class="text-gray-300">
+                Radio frequency propagation is non-linear. Free Space Path Loss (FSPL) combined with structural attenuation causes signal degradation of up to <strong class="text-pink-400">18 dBm per reinforced wall</strong>.
+              </p>
+            </div>
+
+            <div class="space-y-2">
+              <h4 class="font-orbitron text-xs text-white uppercase tracking-wider font-bold">Key Project Objectives:</h4>
+              <ul class="text-xs space-y-1.5 text-gray-300">
+                <li class="flex items-start space-x-2">
+                  <span class="text-neonCyan mt-0.5">&#9658;</span>
+                  <span><strong>Full 3D Volumetric Mapping:</strong> Transcend traditional 2D top-down heatmaps with elevation-aware RF field simulation.</span>
+                </li>
+                <li class="flex items-start space-x-2">
+                  <span class="text-neonCyan mt-0.5">&#9658;</span>
+                  <span><strong>Physical Material Attenuation:</strong> Real-time obstacle raycasting measuring dB loss across concrete, glass, and drywall.</span>
+                </li>
+                <li class="flex items-start space-x-2">
+                  <span class="text-neonCyan mt-0.5">&#9658;</span>
+                  <span><strong>Live Sensor Probing:</strong> Click anywhere on the 3D floor plan to sample instantaneous RSSI, SNR, and throughput.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        `
+      },
+      {
+        badge: "EXHIBIT SLIDE 02 / 04",
+        title: "Hardware & Tech Stack",
+        subtitle: "Inspired by the Open-Source Ruview Project",
+        content: `
+          <div class="space-y-3.5">
+            <p class="text-gray-300 leading-relaxed">
+              Inspired by the open-source <code class="text-neonCyan bg-black/60 px-1.5 py-0.5 rounded font-mono">ruview</code> initiative, this project marries raw RF Channel State Information (CSI) with LiDAR spatial localization.
+            </p>
+
+            <!-- Tech pipeline blocks -->
+            <div class="grid grid-cols-1 gap-2.5">
+              <div class="p-2.5 rounded bg-black/50 border border-cyan-500/25">
+                <div class="flex items-center justify-between text-xs font-mono mb-1">
+                  <span class="text-neonCyan font-bold">1. ESP32-S3 / SDR Transceiver</span>
+                  <span class="text-gray-500">LAYER 1</span>
+                </div>
+                <p class="text-xs text-gray-400">
+                  Captures raw 802.11n/ac CSI phase and amplitude matrices across 64 OFDM subcarriers, eliminating reliance on crude RSSI averaging.
+                </p>
+              </div>
+
+              <div class="p-2.5 rounded bg-black/50 border border-pink-500/25">
+                <div class="flex items-center justify-between text-xs font-mono mb-1">
+                  <span class="text-neonMagenta font-bold">2. LiDAR SLAM Spatial Cloud</span>
+                  <span class="text-gray-500">LAYER 2</span>
+                </div>
+                <p class="text-xs text-gray-400">
+                  Simultaneous Localization and Mapping matches RF packet timestamps with precise x,y,z coordinates in physical space.
+                </p>
+              </div>
+
+              <div class="p-2.5 rounded bg-black/50 border border-amber-500/25">
+                <div class="flex items-center justify-between text-xs font-mono mb-1">
+                  <span class="text-neonAmber font-bold">3. Synthetic Aperture Radar (SAR)</span>
+                  <span class="text-gray-500">LAYER 3</span>
+                </div>
+                <p class="text-xs text-gray-400">
+                  Constructs a high-resolution 3D holographic RF field by synthesizing multiple mobile receiver measurements into an aperture array.
+                </p>
+              </div>
+            </div>
+
+            <div class="p-2 bg-cyan-950/30 rounded border border-cyan-500/20 text-[11px] font-mono text-cyan-300">
+              <span class="font-bold">STACK:</span> WebGL (Three.js), GLSL Shaders, Web Audio API, Tailwind CSS, Mathematical Friis Path-Loss Solvers.
+            </div>
+          </div>
+        `
+      },
+      {
+        badge: "EXHIBIT SLIDE 03 / 04",
+        title: "Live Interactive Simulation",
+        subtitle: "Real-Time RF Parameter Manipulation",
+        content: `
+          <div class="space-y-4">
+            <p class="text-xs text-gray-300">
+              Manipulate transmission physics and inspect the volumetric heatmap recalculation in real time.
+            </p>
+
+            <!-- Control 1: Tx Power -->
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs font-mono">
+                <span class="text-gray-300">ROUTER TX POWER</span>
+                <span id="slider-val-power" class="text-neonCyan font-bold">20 dBm (100mW)</span>
+              </div>
+              <input type="range" id="ctrl-power" min="10" max="30" value="20" step="1" class="w-full cursor-pointer" />
+            </div>
+
+            <!-- Control 2: Frequency Band Toggle -->
+            <div class="space-y-1.5">
+              <div class="text-xs font-mono text-gray-300">TRANSMISSION FREQUENCY</div>
+              <div class="grid grid-cols-3 gap-1.5 text-xs font-mono">
+                <button onclick="setFrequency(2.4)" id="btn-freq-24" class="cyber-btn py-1.5 bg-black/50 hover:bg-cyan-900/40 text-gray-400 border border-cyan-500/30">2.4 GHz</button>
+                <button onclick="setFrequency(5.0)" id="btn-freq-50" class="cyber-btn py-1.5 bg-cyan-900/70 text-neonCyan border border-cyan-400 font-bold">5.0 GHz</button>
+                <button onclick="setFrequency(6.0)" id="btn-freq-60" class="cyber-btn py-1.5 bg-black/50 hover:bg-cyan-900/40 text-gray-400 border border-cyan-500/30">6.0 GHz</button>
+              </div>
+              <p class="text-[11px] text-gray-400 italic">2.4 GHz penetrates walls better; 5.0/6.0 GHz provides higher bandwidth but suffers greater structural attenuation.</p>
+            </div>
+
+            <!-- Control 3: Wall Obstacle Material -->
+            <div class="space-y-1.5">
+              <div class="text-xs font-mono text-gray-300">STRUCTURAL WALL MATERIAL</div>
+              <select id="ctrl-wall-mat" onchange="setWallMaterial(this.value)" class="w-full bg-black/70 border border-cyan-500/40 text-cyan-300 text-xs rounded p-2 font-mono outline-none">
+                <option value="concrete">Reinforced Concrete (-18 dBm Attenuation)</option>
+                <option value="drywall">Drywall & Wood (-7 dBm Attenuation)</option>
+                <option value="glass">Double Glazed Glass (-3 dBm Attenuation)</option>
+                <option value="none">Free Space / No Absorption (0 dBm)</option>
+              </select>
+            </div>
+
+            <!-- Control 4: Heatmap Elevation Slice -->
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs font-mono">
+                <span class="text-gray-300">HEATMAP SLICE HEIGHT</span>
+                <span id="slider-val-height" class="text-neonMagenta font-bold">0.8 m</span>
+              </div>
+              <input type="range" id="ctrl-height" min="0.1" max="2.8" value="0.8" step="0.1" class="w-full cursor-pointer" />
+            </div>
+
+            <!-- Control 5: Wave Speed & Beamforming Toggles -->
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button onclick="toggleWaveActive()" id="btn-toggle-wave" class="cyber-btn py-1.5 bg-cyan-950/60 hover:bg-cyan-900/60 text-cyan-300 border border-cyan-500/40 text-xs font-mono">
+                PAUSE WAVES
+              </button>
+              <button onclick="toggleBeamforming()" id="btn-toggle-beam" class="cyber-btn py-1.5 bg-black/50 hover:bg-cyan-900/40 text-gray-400 border border-cyan-500/30 text-xs font-mono">
+                MIMO BEAM: OFF
+              </button>
+            </div>
+          </div>
+        `
+      },
+      {
+        badge: "EXHIBIT SLIDE 04 / 04",
+        title: "Applications & Future Scope",
+        subtitle: "Beyond Internet Access: The Future of Spatial RF",
+        content: `
+          <div class="space-y-3.5">
+            <p class="text-gray-300 leading-relaxed">
+              Spatial RF mapping unlocks unprecedented capabilities beyond communication, transforming Wi-Fi waves into passive sensing radars.
+            </p>
+
+            <div class="space-y-2.5">
+              <div class="p-2.5 rounded bg-black/50 border border-cyan-500/25 flex items-start space-x-3">
+                <div class="p-2 rounded bg-cyan-950 text-neonCyan mt-0.5">
+                  <i data-lucide="home" class="w-4 h-4"></i>
+                </div>
+                <div>
+                  <h4 class="font-orbitron text-xs font-bold text-white">Smart Building Mesh Placement</h4>
+                  <p class="text-xs text-gray-400">Algorithmic positioning of APs and repeater nodes eliminates costly architectural trial-and-error.</p>
+                </div>
+              </div>
+
+              <div class="p-2.5 rounded bg-black/50 border border-pink-500/25 flex items-start space-x-3">
+                <div class="p-2 rounded bg-pink-950 text-neonMagenta mt-0.5">
+                  <i data-lucide="user-check" class="w-4 h-4"></i>
+                </div>
+                <div>
+                  <h4 class="font-orbitron text-xs font-bold text-white">Privacy-Preserving Wi-Fi Sensing</h4>
+                  <p class="text-xs text-gray-400">Detecting human occupancy, respiration, and accidental falls through walls without privacy-invasive optical cameras.</p>
+                </div>
+              </div>
+
+              <div class="p-2.5 rounded bg-black/50 border border-amber-500/25 flex items-start space-x-3">
+                <div class="p-2 rounded bg-amber-950 text-neonAmber mt-0.5">
+                  <i data-lucide="sparkles" class="w-4 h-4"></i>
+                </div>
+                <div>
+                  <h4 class="font-orbitron text-xs font-bold text-white">6G Reconfigurable Intelligent Surfaces</h4>
+                  <p class="text-xs text-gray-400">Integrating smart metamaterial wall surfaces (RIS) that actively steer and reflect RF waves around concrete pillars.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-2.5 rounded bg-cyan-950/40 border border-cyan-500/40 text-center">
+              <span class="text-xs font-mono text-cyan-300 font-bold tracking-wider">CONCLUSION: RF IS THE 6TH SENSE OF SMART ENVIRONMENTS</span>
+            </div>
+          </div>
+        `
+      }
+    ];
+
+    // ==================== SYNTHESIZED WEB AUDIO ENGINE ====================
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+      }
+      playClick() {
+        if (!state.audioEnabled) return;
+        this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1400, this.ctx.currentTime + 0.05);
+        gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.05);
+      }
+      playSlideWhoosh() {
+        if (!state.audioEnabled) return;
+        this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(580, this.ctx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.28);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.28);
+      }
+      playPulseBeep() {
+        if (!state.audioEnabled) return;
+        this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.06, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+      }
+    }
+    const audio = new SoundEngine();
+
+    // ==================== THREE.JS SCENE SETUP ====================
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x06070a);
+    scene.fog = new THREE.FogExp2(0x06070a, 0.018);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.copy(slideCameraPresets[0].camPos);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 - 0.03; // Don't flip below ground
+    controls.minDistance = 2;
+    controls.maxDistance = 65;
+    controls.target.copy(slideCameraPresets[0].targetPos);
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0x0f172a, 1.5);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0x00f3ff, 0.6);
+    dirLight.position.set(15, 30, 15);
+    scene.add(dirLight);
+
+    const routerLight = new THREE.PointLight(0x00f3ff, 2.5, 18);
+    routerLight.position.copy(state.routerPos).add(new THREE.Vector3(0, 0.5, 0));
+    scene.add(routerLight);
+
+    // ==================== ARCHITECTURAL WIREFRAME MODEL ====================
+    const architecturalGroup = new THREE.Group();
+    scene.add(architecturalGroup);
+
+    // Sci-Fi Base Floor Grid
+    const gridHelper = new THREE.GridHelper(32, 32, 0x00f3ff, 0x1e293b);
+    gridHelper.position.y = 0.01;
+    architecturalGroup.add(gridHelper);
+
+    // Sub-floor plane with subtle dark metallic reflection
+    const floorGeo = new THREE.PlaneGeometry(32, 32);
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: 0x07080f,
+      roughness: 0.85,
+      metalness: 0.3
+    });
+    const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+    floorMesh.rotation.x = -Math.PI / 2;
+    floorMesh.receiveShadow = true;
+    architecturalGroup.add(floorMesh);
+
+    // Wall definitions for multi-room interior
+    // [x, z, width, depth, height, name]
+    const wallConfigs = [
+      // Outer boundaries
+      { x: 0, z: -10, w: 24, d: 0.3, h: 3.2, name: "North Wall" },
+      { x: 0, z: 10, w: 24, d: 0.3, h: 3.2, name: "South Wall" },
+      { x: -12, z: 0, w: 0.3, d: 20, h: 3.2, name: "West Wall" },
+      { x: 12, z: 0, w: 0.3, d: 20, h: 3.2, name: "East Wall" },
+
+      // Interior Partitions & Rooms
+      // Partition 1: Separates Router Lab from Corridor
+      { x: -2, z: -3, w: 0.3, d: 14, h: 3.2, name: "Lab Partition A", isAttenuating: true },
+      // Partition 2: Shielded Server Room
+      { x: 5, z: 2, w: 14, d: 0.4, h: 3.2, name: "Server Shield Wall", isAttenuating: true, isHeavy: true },
+      { x: 5, z: 7, w: 0.4, d: 6, h: 3.2, name: "Server Cross Wall", isAttenuating: true, isHeavy: true },
+
+      // Heavy Structural Column
+      { x: 1, z: 5, w: 1.4, d: 1.4, h: 3.2, name: "Structural Pillar", isAttenuating: true, isHeavy: true }
+    ];
+
+    const wallMeshes = [];
+    const wallBoundingBoxes = [];
+
+    // Create glowing sci-fi wall meshes
+    wallConfigs.forEach(conf => {
+      const geo = new THREE.BoxGeometry(conf.w, conf.h, conf.d);
+      
+      // Semi-transparent glowing glass slab
+      const mat = new THREE.MeshStandardMaterial({
+        color: conf.isHeavy ? 0x1e1b4b : 0x0f172a,
+        transparent: true,
+        opacity: conf.isHeavy ? 0.65 : 0.35,
+        roughness: 0.2,
+        metalness: 0.8
+      });
+      const wall = new THREE.Mesh(geo, mat);
+      wall.position.set(conf.x, conf.h / 2, conf.z);
+      wall.userData = conf;
+      architecturalGroup.add(wall);
+      wallMeshes.push(wall);
+
+      // Add neon wireframe edge lines
+      const edges = new THREE.EdgesGeometry(geo);
+      const edgeLine = new THREE.LineSegments(
+        edges,
+        new THREE.LineBasicMaterial({
+          color: conf.isHeavy ? 0xff007f : 0x00f3ff,
+          transparent: true,
+          opacity: 0.75
+        })
+      );
+      wall.add(edgeLine);
+
+      // Store bounding box for physics raycasting
+      const bbox = new THREE.Box3().setFromObject(wall);
+      wallBoundingBoxes.push({
+        box: bbox,
+        isHeavy: !!conf.isHeavy,
+        name: conf.name
+      });
+    });
+
+    // Room Label Sprites in 3D Space
+    function makeTextSprite(text, color = '#00f3ff') {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'rgba(6, 7, 10, 0.7)';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 4;
+      ctx.strokeRect(10, 10, 492, 108);
+      ctx.fillRect(10, 10, 492, 108);
+
+      ctx.fillStyle = color;
+      ctx.font = 'bold 36px Orbitron, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 256, 64);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.85 });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.scale.set(4, 1, 1);
+      return sprite;
+    }
+
+    const labelLab = makeTextSprite('ZONE A: ROUTER LAB', '#00f3ff');
+    labelLab.position.set(-7, 3.8, -4);
+    architecturalGroup.add(labelLab);
+
+    const labelServer = makeTextSprite('ZONE B: SHIELDED CORE', '#ff007f');
+    labelServer.position.set(7, 3.8, 5);
+    architecturalGroup.add(labelServer);
+
+    const labelCorridor = makeTextSprite('ZONE C: PERIMETER / PATIO', '#ffb700');
+    labelCorridor.position.set(5, 3.8, -6);
+    architecturalGroup.add(labelCorridor);
+
+    // ==================== 3D WI-FI ROUTER HARDWARE ====================
+    const routerGroup = new THREE.Group();
+    routerGroup.position.copy(state.routerPos);
+    scene.add(routerGroup);
+
+    // Router table / pedestal
+    const pedestalGeo = new THREE.CylinderGeometry(0.7, 0.9, 1.1, 16);
+    const pedestalMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.6, metalness: 0.8 });
+    const pedestal = new THREE.Mesh(pedestalGeo, pedestalMat);
+    pedestal.position.y = -0.6;
+    routerGroup.add(pedestal);
+
+    // Router chassis
+    const chassisGeo = new THREE.BoxGeometry(0.9, 0.12, 0.6);
+    const chassisMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.3, metalness: 0.9 });
+    const chassis = new THREE.Mesh(chassisGeo, chassisMat);
+    routerGroup.add(chassis);
+
+    // Glowing front LED strip
+    const ledGeo = new THREE.BoxGeometry(0.8, 0.02, 0.03);
+    const ledMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff });
+    const led = new THREE.Mesh(ledGeo, ledMat);
+    led.position.set(0, 0, 0.31);
+    chassis.add(led);
+
+    // 4 Sci-Fi Antennas
+    const antennaMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.9 });
+    const antennaTipMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff });
+    const antennaPositions = [
+      { x: -0.38, z: -0.28, rotZ: 0.15 },
+      { x: -0.13, z: -0.28, rotZ: 0.05 },
+      { x: 0.13, z: -0.28, rotZ: -0.05 },
+      { x: 0.38, z: -0.28, rotZ: -0.15 }
+    ];
+
+    antennaPositions.forEach(ap => {
+      const antBase = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.024, 0.45, 8), antennaMat);
+      antBase.position.set(ap.x, 0.22, ap.z);
+      antBase.rotation.z = ap.rotZ;
+      routerGroup.add(antBase);
+
+      const antTip = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), antennaTipMat);
+      antTip.position.y = 0.23;
+      antBase.add(antTip);
+    });
+
+    // Spinning Holographic RF Emitter Ring
+    const ringGeo = new THREE.TorusGeometry(0.7, 0.015, 16, 64);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff, transparent: true, opacity: 0.8 });
+    const haloRing1 = new THREE.Mesh(ringGeo, ringMat);
+    haloRing1.rotation.x = Math.PI / 2;
+    haloRing1.position.y = 0.2;
+    routerGroup.add(haloRing1);
+
+    const haloRing2 = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.01, 16, 64), new THREE.MeshBasicMaterial({ color: 0xff007f, transparent: true, opacity: 0.6 }));
+    haloRing2.rotation.x = Math.PI / 2;
+    haloRing2.position.y = 0.2;
+    routerGroup.add(haloRing2);
+
+    // ==================== EXPANDING VOLUMETRIC SIGNAL WAVES ====================
+    const waveGroup = new THREE.Group();
+    scene.add(waveGroup);
+
+    const waveCount = 5;
+    const waveDomes = [];
+    const maxWaveRadius = 24.0;
+
+    for (let i = 0; i < waveCount; i++) {
+      const geo = new THREE.SphereGeometry(1, 32, 24, 0, Math.PI * 2, 0, Math.PI * 0.55);
+      const mat = new THREE.MeshBasicMaterial({
+        color: i % 2 === 0 ? 0x00f3ff : 0xff007f,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.4,
+        blending: THREE.AdditiveBlending
+      });
+      const dome = new THREE.Mesh(geo, mat);
+      dome.position.copy(state.routerPos);
+      waveGroup.add(dome);
+      waveDomes.push({
+        mesh: dome,
+        progress: i / waveCount
+      });
+    }
+
+    // ==================== RF PHOTON PARTICLE FIELD ====================
+    const particleCount = 2200;
+    const particleGeo = new THREE.BufferGeometry();
+    const particlePositions = new Float32Array(particleCount * 3);
+    const particleColors = new Float32Array(particleCount * 3);
+    const particleSpeeds = new Float32Array(particleCount);
+    const particleDirs = [];
+
+    const colStrong = new THREE.Color(0xff007f); // Magenta
+    const colMedium = new THREE.Color(0x00f3ff); // Cyan
+    const colWeak = new THREE.Color(0x1e1b4b);   // Deep Indigo
+
+    for (let i = 0; i < particleCount; i++) {
+      // Random direction outward from router
+      const theta = Math.random() * Math.PI * 2;
+      const phi = (Math.random() * 0.45) * Math.PI; // Upper hemisphere
+      const dir = new THREE.Vector3(
+        Math.cos(theta) * Math.cos(phi),
+        Math.sin(phi) * 0.6,
+        Math.sin(theta) * Math.cos(phi)
+      ).normalize();
+      particleDirs.push(dir);
+
+      const r = Math.random() * maxWaveRadius;
+      const pos = new THREE.Vector3().copy(state.routerPos).addScaledVector(dir, r);
+      particlePositions[i * 3] = pos.x;
+      particlePositions[i * 3 + 1] = Math.max(0.1, pos.y);
+      particlePositions[i * 3 + 2] = pos.z;
+
+      particleSpeeds[i] = 1.8 + Math.random() * 2.5;
+
+      const t = r / maxWaveRadius;
+      const c = t < 0.4 ? colStrong.clone().lerp(colMedium, t / 0.4) : colMedium.clone().lerp(colWeak, (t - 0.4) / 0.6);
+      particleColors[i * 3] = c.r;
+      particleColors[i * 3 + 1] = c.g;
+      particleColors[i * 3 + 2] = c.b;
+    }
+
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+    particleGeo.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
+
+    const particleMat = new THREE.PointsMaterial({
+      size: 0.16,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending
+    });
+    const particleSystem = new THREE.Points(particleGeo, particleMat);
+    scene.add(particleSystem);
+
+    // ==================== 3D SPATIAL HEATMAP GRID ====================
+    // 40 x 30 grid = 1,200 volumetric sampling nodes
+    const gridDimX = 40;
+    const gridDimZ = 30;
+    const gridSpanX = 26;
+    const gridSpanZ = 20;
+    const totalHeatmapNodes = gridDimX * gridDimZ;
+
+    const heatmapGeo = new THREE.BufferGeometry();
+    const heatmapPositions = new Float32Array(totalHeatmapNodes * 3);
+    const heatmapColors = new Float32Array(totalHeatmapNodes * 3);
+
+    const nodeCoords = [];
+    let idx = 0;
+    for (let ix = 0; ix < gridDimX; ix++) {
+      for (let iz = 0; iz < gridDimZ; iz++) {
+        const x = -gridSpanX / 2 + (ix / (gridDimX - 1)) * gridSpanX;
+        const z = -gridSpanZ / 2 + (iz / (gridDimZ - 1)) * gridSpanZ;
+        heatmapPositions[idx * 3] = x;
+        heatmapPositions[idx * 3 + 1] = state.heatmapElevation;
+        heatmapPositions[idx * 3 + 2] = z;
+        nodeCoords.push({ x, z });
+        idx++;
+      }
+    }
+
+    heatmapGeo.setAttribute('position', new THREE.BufferAttribute(heatmapPositions, 3));
+    heatmapGeo.setAttribute('color', new THREE.BufferAttribute(heatmapColors, 3));
+
+    // Custom circle shader texture for crisp glowing heatmap nodes
+    function createNodeTexture() {
+      const c = document.createElement('canvas');
+      c.width = 64;
+      c.height = 64;
+      const ctx = c.getContext('2d');
+      const grad = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
+      grad.addColorStop(0, 'rgba(255,255,255,1)');
+      grad.addColorStop(0.4, 'rgba(255,255,255,0.85)');
+      grad.addColorStop(0.8, 'rgba(255,255,255,0.3)');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 64, 64);
+      return new THREE.CanvasTexture(c);
+    }
+
+    const heatmapMat = new THREE.PointsMaterial({
+      size: 0.42,
+      map: createNodeTexture(),
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+
+    const heatmapMesh = new THREE.Points(heatmapGeo, heatmapMat);
+    scene.add(heatmapMesh);
+
+    // Physics calculation: Raycast attenuation through walls
+    const ray = new THREE.Ray();
+    function computePointRSSI(targetPos) {
+      const dist = Math.max(0.6, state.routerPos.distanceTo(targetPos));
+      
+      // Friis Free Space Path Loss (FSPL)
+      // FSPL(dB) = 20*log10(d) + 20*log10(f_MHz) - 27.55
+      const f_MHz = state.frequency * 1000;
+      const fspl = 20 * Math.log10(dist) + 20 * Math.log10(f_MHz) - 27.55;
+
+      // Raycast wall obstacle detection
+      ray.origin.copy(state.routerPos);
+      ray.direction.subVectors(targetPos, state.routerPos).normalize();
+
+      let wallLoss = 0;
+      let hitWallCount = 0;
+      let lastHitName = "LOS (CLEAR)";
+
+      if (state.wallMaterial !== 'none') {
+        const baseLossPerWall = state.wallMaterial === 'concrete' ? 18 :
+                               state.wallMaterial === 'drywall' ? 7 :
+                               state.wallMaterial === 'glass' ? 3 : 0;
+
+        for (const wallInfo of wallBoundingBoxes) {
+          // Check if ray intersects wall bounding box before target point
+          const hitPoint = new THREE.Vector3();
+          if (ray.intersectBox(wallInfo.box, hitPoint)) {
+            const hitDist = state.routerPos.distanceTo(hitPoint);
+            if (hitDist < dist) {
+              const wallMultiplier = wallInfo.isHeavy ? 1.6 : 1.0;
+              wallLoss += baseLossPerWall * wallMultiplier;
+              hitWallCount++;
+              lastHitName = wallInfo.name;
+            }
+          }
+        }
+      }
+
+      // Beamforming gain if enabled in direction of probe
+      let beamGain = 0;
+      if (state.beamforming) {
+        const toProbe = new THREE.Vector3().subVectors(state.probePos, state.routerPos).normalize();
+        const toTarget = new THREE.Vector3().subVectors(targetPos, state.routerPos).normalize();
+        const alignment = Math.max(0, toProbe.dot(toTarget));
+        beamGain = Math.pow(alignment, 3) * 7.5; // Up to +7.5 dB directed gain
+      }
+
+      // Overall RSSI calculation
+      const rssi = state.txPower - fspl - wallLoss + beamGain;
+      return {
+        rssi: Math.min(-20, rssi),
+        dist,
+        wallLoss,
+        hitWallCount,
+        lastHitName
+      };
+    }
+
+    // Color mapper for RSSI (dBm)
+    // Red/Magenta (> -45) -> Amber (-55) -> Cyan (-68) -> Blue (-78) -> Indigo/Dark (< -85)
+    function rssiToColor(rssi) {
+      if (rssi >= -48) {
+        // Magenta / Hot Pink
+        return new THREE.Color(0xff007f);
+      } else if (rssi >= -60) {
+        // Orange / Amber
+        const t = (rssi - (-60)) / 12;
+        return new THREE.Color(0xffb700).lerp(new THREE.Color(0xff007f), t);
+      } else if (rssi >= -72) {
+        // Neon Cyan / Green
+        const t = (rssi - (-72)) / 12;
+        return new THREE.Color(0x00f3ff).lerp(new THREE.Color(0xffb700), t);
+      } else if (rssi >= -84) {
+        // Blue / Indigo
+        const t = (rssi - (-84)) / 12;
+        return new THREE.Color(0x3b82f6).lerp(new THREE.Color(0x00f3ff), t);
+      } else {
+        // Deep Violet / Dead Zone
+        return new THREE.Color(0x1e1b4b);
+      }
+    }
+
+    // Recalculate Heatmap Colors
+    function updateHeatmapGrid() {
+      const colors = heatmapGeo.attributes.color.array;
+      const positions = heatmapGeo.attributes.position.array;
+
+      for (let i = 0; i < totalHeatmapNodes; i++) {
+        const nodePos = new THREE.Vector3(nodeCoords[i].x, state.heatmapElevation, nodeCoords[i].z);
+        positions[i * 3 + 1] = state.heatmapElevation;
+
+        const res = computePointRSSI(nodePos);
+        const col = rssiToColor(res.rssi);
+
+        colors[i * 3] = col.r;
+        colors[i * 3 + 1] = col.g;
+        colors[i * 3 + 2] = col.b;
+      }
+      heatmapGeo.attributes.position.needsUpdate = true;
+      heatmapGeo.attributes.color.needsUpdate = true;
+    }
+
+    // ==================== MOBILE SENSOR PROBE ====================
+    const probeGroup = new THREE.Group();
+    probeGroup.position.copy(state.probePos);
+    scene.add(probeGroup);
+
+    // Sci-Fi Reticle Base
+    const probeDisc = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.4, 0.4, 0.04, 24),
+      new THREE.MeshBasicMaterial({ color: 0x00f3ff, wireframe: true })
+    );
+    probeGroup.add(probeDisc);
+
+    // Floating Target Beacon
+    const probeTargetGeo = new THREE.OctahedronGeometry(0.2, 0);
+    const probeTargetMat = new THREE.MeshStandardMaterial({
+      color: 0x00ffa3,
+      emissive: 0x00ffa3,
+      emissiveIntensity: 0.6,
+      roughness: 0.2
+    });
+    const probeTarget = new THREE.Mesh(probeTargetGeo, probeTargetMat);
+    probeTarget.position.y = 0.85;
+    probeGroup.add(probeTarget);
+
+    // Vertical Holographic Laser Guide down to floor
+    const laserGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.85, 8);
+    const laserMat = new THREE.MeshBasicMaterial({ color: 0x00ffa3, transparent: true, opacity: 0.7 });
+    const laser = new THREE.Mesh(laserGeo, laserMat);
+    laser.position.y = 0.425;
+    probeGroup.add(laser);
+
+    // Line of sight laser between Router and Probe
+    const losLineGeo = new THREE.BufferGeometry().setFromPoints([state.routerPos, state.probePos]);
+    const losLineMat = new THREE.LineDashedMaterial({
+      color: 0x00ffa3,
+      dashSize: 0.3,
+      gapSize: 0.15,
+      transparent: true,
+      opacity: 0.85
+    });
+    const losLine = new THREE.Line(losLineGeo, losLineMat);
+    losLine.computeLineDistances();
+    scene.add(losLine);
+
+    // Probe click-to-reposition raycaster
+    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const mouseRaycaster = new THREE.Raycaster();
+    const mouseVec = new THREE.Vector2();
+
+    window.addEventListener('pointerdown', (e) => {
+      // Don't intercept if clicking UI panels
+      if (e.target.closest('#slide-panel') || e.target.closest('header') || e.target.closest('footer') || e.target.closest('aside')) {
+        return;
+      }
+      mouseVec.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouseVec.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      mouseRaycaster.setFromCamera(mouseVec, camera);
+
+      const hit = new THREE.Vector3();
+      if (mouseRaycaster.ray.intersectPlane(groundPlane, hit)) {
+        // Clamp inside room boundary
+        hit.x = Math.max(-11.5, Math.min(11.5, hit.x));
+        hit.z = Math.max(-9.5, Math.min(9.5, hit.z));
+        hit.y = 0.2;
+
+        state.probePos.copy(hit);
+        probeGroup.position.copy(hit);
+        audio.playClick();
+        updateProbeTelemetry();
+        if (state.beamforming) updateHeatmapGrid();
+      }
+    });
+
+    // Update Telemetry Display for Mobile Probe
+    function updateProbeTelemetry() {
+      const res = computePointRSSI(state.probePos);
+      const rssiVal = Math.round(res.rssi);
+
+      // Update los laser geometry
+      losLineGeo.setFromPoints([
+        state.routerPos.clone().add(new THREE.Vector3(0, 0.2, 0)),
+        state.probePos.clone().add(new THREE.Vector3(0, 0.8, 0))
+      ]);
+      losLine.computeLineDistances();
+
+      // Laser color changes if obstructed
+      if (res.hitWallCount > 0) {
+        losLineMat.color.setHex(0xff007f);
+      } else {
+        losLineMat.color.setHex(0x00ffa3);
+      }
+
+      // Update HUD Values
+      const elRssi = document.getElementById('telemetry-rssi');
+      if (elRssi) elRssi.textContent = rssiVal;
+
+      const elDist = document.getElementById('telemetry-dist');
+      if (elDist) elDist.textContent = res.dist.toFixed(1) + ' m';
+
+      // Estimate throughput (Shannon capacity approximation)
+      // > -50dBm: ~850Mbps, -65dBm: ~450Mbps, -80dBm: ~54Mbps, < -85dBm: 0-10Mbps
+      let speedMbps = Math.max(0, Math.round((rssiVal + 95) * 16));
+      if (rssiVal < -85) speedMbps = Math.floor(Math.random() * 5);
+      const elSpeed = document.getElementById('telemetry-speed');
+      if (elSpeed) elSpeed.textContent = speedMbps + ' Mbps';
+
+      // Packet loss %
+      let lossPct = rssiVal > -65 ? 0.05 : rssiVal > -75 ? 0.85 : rssiVal > -82 ? 5.2 : 28.5;
+      const elLoss = document.getElementById('telemetry-loss');
+      if (elLoss) elLoss.textContent = lossPct.toFixed(2) + '%';
+
+      // LOS state
+      const elLos = document.getElementById('telemetry-los');
+      if (elLos) {
+        if (res.hitWallCount === 0) {
+          elLos.textContent = "LOS (CLEAR)";
+          elLos.className = "text-neonGreen font-bold text-xs truncate";
+        } else {
+          elLos.textContent = `OBSTRUCTED (${res.hitWallCount} WALLS)`;
+          elLos.className = "text-neonMagenta font-bold text-xs truncate";
+        }
+      }
+
+      // Bar percentage
+      const barPct = Math.max(5, Math.min(100, Math.round(((rssiVal + 95) / 65) * 100)));
+      const elBar = document.getElementById('telemetry-bar');
+      if (elBar) elBar.style.width = barPct + '%';
+    }
+
+    // ==================== CSI SPECTRUM BARS (RUVIEW SIMULATOR) ====================
+    const spectrumContainer = document.getElementById('spectrum-bars');
+    const numSubcarriers = 32;
+    const barElements = [];
+    if (spectrumContainer) {
+      for (let i = 0; i < numSubcarriers; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'flex-1 bg-cyan-400/80 rounded-t transition-all duration-150';
+        bar.style.height = `${30 + Math.random() * 60}%`;
+        spectrumContainer.appendChild(bar);
+        barElements.push(bar);
+      }
+    }
+
+    function animateSpectrum() {
+      if (!barElements.length) return;
+      const time = performance.now() * 0.003;
+      for (let i = 0; i < numSubcarriers; i++) {
+        const wave = Math.sin(time + i * 0.3) * 0.5 + 0.5;
+        const noise = (Math.random() - 0.5) * 0.2;
+        const height = Math.max(10, Math.min(100, (wave + noise) * 85));
+        barElements[i].style.height = `${height}%`;
+        if (height > 75) {
+          barElements[i].style.backgroundColor = '#ff007f';
+        } else if (height > 45) {
+          barElements[i].style.backgroundColor = '#00f3ff';
+        } else {
+          barElements[i].style.backgroundColor = '#3b82f6';
+        }
+      }
+    }
+
+    // ==================== SLIDE CONTROLLER & CAMERA TWEEN ====================
+    function renderSlide(index) {
+      const data = slideData[index];
+      const badge = document.getElementById('slide-badge');
+      if (badge) badge.textContent = data.badge;
+
+      const container = document.getElementById('slide-content-container');
+      if (container) {
+        container.innerHTML = `
+          <div class="border-b border-cyan-500/20 pb-2 mb-2">
+            <h2 class="font-orbitron text-base font-bold text-white tracking-wide">${data.title}</h2>
+            <p class="text-xs text-neonCyan font-mono">${data.subtitle}</p>
+          </div>
+          ${data.content}
+        `;
+        lucide.createIcons();
+        bindSlideEvents();
+      }
+
+      // Update dots
+      const dots = document.querySelectorAll('#slide-dots button');
+      dots.forEach((dot, i) => {
+        if (i === index) {
+          dot.className = 'w-2.5 h-2.5 rounded-full bg-neonCyan shadow-[0_0_8px_#00f3ff] transition-all duration-300';
+        } else {
+          dot.className = 'w-2.5 h-2.5 rounded-full bg-gray-600 hover:bg-cyan-400 transition-all duration-300';
+        }
+      });
+    }
+
+    function animateCameraTo(targetCamPos, targetLookAt, duration = 1400) {
+      state.camTransitioning = true;
+      state.camStartTime = performance.now();
+      state.camDuration = duration;
+      state.camStartPos.copy(camera.position);
+      state.camEndPos.copy(targetCamPos);
+      state.targetStartPos.copy(controls.target);
+      state.targetEndPos.copy(targetLookAt);
+    }
+
+    function goToSlide(index) {
+      if (index < 0) index = 0;
+      if (index >= slideData.length) index = slideData.length - 1;
+      state.currentSlide = index;
+      renderSlide(index);
+
+      // Trigger camera choreography preset
+      const preset = slideCameraPresets[index];
+      animateCameraTo(preset.camPos, preset.targetPos);
+      audio.playSlideWhoosh();
+    }
+
+    function bindSlideEvents() {
+      // Sliders on Slide 3
+      const ctrlPower = document.getElementById('ctrl-power');
+      if (ctrlPower) {
+        ctrlPower.value = state.txPower;
+        ctrlPower.addEventListener('input', (e) => {
+          state.txPower = parseFloat(e.target.value);
+          const valLabel = document.getElementById('slider-val-power');
+          const mW = Math.round(Math.pow(10, state.txPower / 10));
+          if (valLabel) valLabel.textContent = `${state.txPower} dBm (${mW}mW)`;
+          updateHeatmapGrid();
+          updateProbeTelemetry();
+        });
+      }
+
+      const ctrlHeight = document.getElementById('ctrl-height');
+      if (ctrlHeight) {
+        ctrlHeight.value = state.heatmapElevation;
+        ctrlHeight.addEventListener('input', (e) => {
+          state.heatmapElevation = parseFloat(e.target.value);
+          const valLabel = document.getElementById('slider-val-height');
+          if (valLabel) valLabel.textContent = `${state.heatmapElevation.toFixed(1)} m`;
+          updateHeatmapGrid();
+        });
+      }
+
+      const wallSelect = document.getElementById('ctrl-wall-mat');
+      if (wallSelect) {
+        wallSelect.value = state.wallMaterial;
+      }
+    }
+
+    // Global Interactive Functions
+    window.setFrequency = function(freq) {
+      state.frequency = freq;
+      document.getElementById('hud-band').textContent = `${freq.toFixed(1)} GHz`;
+      
+      const b24 = document.getElementById('btn-freq-24');
+      const b50 = document.getElementById('btn-freq-50');
+      const b60 = document.getElementById('btn-freq-60');
+      [b24, b50, b60].forEach(b => {
+        if (b) {
+          b.className = 'cyber-btn py-1.5 bg-black/50 hover:bg-cyan-900/40 text-gray-400 border border-cyan-500/30';
+        }
+      });
+      if (freq === 2.4 && b24) b24.className = 'cyber-btn py-1.5 bg-cyan-900/70 text-neonCyan border border-cyan-400 font-bold';
+      if (freq === 5.0 && b50) b50.className = 'cyber-btn py-1.5 bg-cyan-900/70 text-neonCyan border border-cyan-400 font-bold';
+      if (freq === 6.0 && b60) b60.className = 'cyber-btn py-1.5 bg-cyan-900/70 text-neonCyan border border-cyan-400 font-bold';
+      
+      audio.playClick();
+      updateHeatmapGrid();
+      updateProbeTelemetry();
+    };
+
+    window.setWallMaterial = function(mat) {
+      state.wallMaterial = mat;
+      audio.playClick();
+      updateHeatmapGrid();
+      updateProbeTelemetry();
+    };
+
+    window.toggleWaveActive = function() {
+      state.waveActive = !state.waveActive;
+      const btn = document.getElementById('btn-toggle-wave');
+      if (btn) {
+        btn.textContent = state.waveActive ? 'PAUSE WAVES' : 'RESUME WAVES';
+        btn.className = state.waveActive ? 
+          'cyber-btn py-1.5 bg-cyan-950/60 hover:bg-cyan-900/60 text-cyan-300 border border-cyan-500/40 text-xs font-mono' :
+          'cyber-btn py-1.5 bg-pink-950/60 hover:bg-pink-900/60 text-pink-300 border border-pink-500/40 text-xs font-mono';
+      }
+      audio.playClick();
+    };
+
+    window.toggleBeamforming = function() {
+      state.beamforming = !state.beamforming;
+      const btn = document.getElementById('btn-toggle-beam');
+      if (btn) {
+        btn.textContent = state.beamforming ? 'MIMO BEAM: ON' : 'MIMO BEAM: OFF';
+        btn.className = state.beamforming ? 
+          'cyber-btn py-1.5 bg-pink-900/70 text-neonMagenta border border-pink-400 font-bold text-xs font-mono' :
+          'cyber-btn py-1.5 bg-black/50 hover:bg-cyan-900/40 text-gray-400 border border-cyan-500/30 text-xs font-mono';
+      }
+      audio.playPulseBeep();
+      updateHeatmapGrid();
+      updateProbeTelemetry();
+    };
+
+    // Header Controls
+    document.getElementById('btn-prev-slide').addEventListener('click', () => goToSlide(state.currentSlide - 1));
+    document.getElementById('btn-next-slide').addEventListener('click', () => goToSlide(state.currentSlide + 1));
+
+    document.getElementById('btn-reset-view').addEventListener('click', () => {
+      const preset = slideCameraPresets[state.currentSlide];
+      animateCameraTo(preset.camPos, preset.targetPos);
+      audio.playClick();
+    });
+
+    document.getElementById('btn-audio').addEventListener('click', () => {
+      state.audioEnabled = !state.audioEnabled;
+      const txt = document.getElementById('audio-text');
+      const icon = document.getElementById('audio-icon');
+      if (txt) txt.textContent = state.audioEnabled ? 'AUDIO: ON' : 'AUDIO: OFF';
+      if (icon) icon.setAttribute('data-lucide', state.audioEnabled ? 'volume-2' : 'volume-x');
+      lucide.createIcons();
+    });
+
+    document.getElementById('btn-auto-tour').addEventListener('click', () => {
+      state.autoTour = !state.autoTour;
+      const txt = document.getElementById('tour-text');
+      const icon = document.getElementById('tour-icon');
+      if (state.autoTour) {
+        txt.textContent = 'TOUR: ON';
+        icon.setAttribute('data-lucide', 'pause');
+        state.tourTimer = setInterval(() => {
+          let next = (state.currentSlide + 1) % slideData.length;
+          goToSlide(next);
+        }, 8000);
+      } else {
+        txt.textContent = 'AUTO TOUR';
+        icon.setAttribute('data-lucide', 'play');
+        clearInterval(state.tourTimer);
+      }
+      lucide.createIcons();
+      audio.playClick();
+    });
+
+    document.getElementById('btn-fullscreen').addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') goToSlide(state.currentSlide + 1);
+      if (e.key === 'ArrowLeft') goToSlide(state.currentSlide - 1);
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        toggleWaveActive();
+      }
+      if (e.key === 'r' || e.key === 'R') {
+        const preset = slideCameraPresets[state.currentSlide];
+        animateCameraTo(preset.camPos, preset.targetPos);
+      }
+    });
+
+    // Handle Window Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ==================== MAIN ANIMATION LOOP ====================
+    let lastTime = performance.now();
+    let frameCount = 0;
+    let lastFpsUpdate = performance.now();
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+
+      const delta = (now - lastTime) * 0.001;
+      lastTime = now;
+
+      // FPS calculation
+      frameCount++;
+      if (now - lastFpsUpdate > 1000) {
+        const fps = Math.round((frameCount * 1000) / (now - lastFpsUpdate));
+        const elFps = document.getElementById('hud-fps');
+        if (elFps) elFps.textContent = fps;
+        frameCount = 0;
+        lastFpsUpdate = now;
+      }
+
+      // Smooth Camera Transition
+      if (state.camTransitioning) {
+        const elapsed = now - state.camStartTime;
+        let progress = Math.min(1.0, elapsed / state.camDuration);
+        // EaseInOutCubic
+        const ease = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+        camera.position.lerpVectors(state.camStartPos, state.camEndPos, ease);
+        controls.target.lerpVectors(state.targetStartPos, state.targetEndPos, ease);
+
+        if (progress >= 1.0) {
+          state.camTransitioning = false;
+        }
+      }
+
+      controls.update();
+
+      // Animate Router Halo Rings
+      haloRing1.rotation.z += delta * 1.5;
+      haloRing2.rotation.z -= delta * 0.8;
+
+      // Animate Beacon Floating Target
+      probeTarget.rotation.y += delta * 2.0;
+      probeTarget.position.y = 0.85 + Math.sin(now * 0.004) * 0.08;
+
+      // Animate Wave Domes
+      if (state.waveActive) {
+        const speed = state.waveSpeed * delta * 0.35;
+        waveDomes.forEach(d => {
+          d.progress += speed;
+          if (d.progress > 1.0) d.progress = 0.0;
+          const currentRadius = d.progress * maxWaveRadius;
+          d.mesh.scale.set(currentRadius, currentRadius, currentRadius);
+          // Quadratic alpha fade-out
+          d.mesh.material.opacity = Math.max(0, (1.0 - d.progress) * 0.35);
+        });
+
+        // Animate Particle Field
+        const positions = particleGeo.attributes.position.array;
+        for (let i = 0; i < particleCount; i++) {
+          const dir = particleDirs[i];
+          const spd = particleSpeeds[i] * delta * 2.0;
+          positions[i * 3] += dir.x * spd;
+          positions[i * 3 + 1] += dir.y * spd;
+          positions[i * 3 + 2] += dir.z * spd;
+
+          // Check distance from router
+          const curDist = Math.sqrt(
+            Math.pow(positions[i * 3] - state.routerPos.x, 2) +
+            Math.pow(positions[i * 3 + 1] - state.routerPos.y, 2) +
+            Math.pow(positions[i * 3 + 2] - state.routerPos.z, 2)
+          );
+
+          if (curDist > maxWaveRadius) {
+            // Reset back near router
+            positions[i * 3] = state.routerPos.x + dir.x * 0.2;
+            positions[i * 3 + 1] = Math.max(0.1, state.routerPos.y + dir.y * 0.2);
+            positions[i * 3 + 2] = state.routerPos.z + dir.z * 0.2;
+          }
+        }
+        particleGeo.attributes.position.needsUpdate = true;
+      }
+
+      // Live Spectrum Waterfalls
+      animateSpectrum();
+
+      renderer.render(scene, camera);
+    }
+
+    // ==================== INITIALIZATION ====================
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      renderSlide(0);
+      updateHeatmapGrid();
+      updateProbeTelemetry();
+      requestAnimationFrame(animate);
+    });
+  </script>
+</body>
+</html>
